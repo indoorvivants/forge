@@ -18,11 +18,9 @@ inThisBuild(
 )
 
 organization := "com.indoorvivants.forge"
-sonatypeProfileName := "com.indoorvivants"
 
 lazy val publishing = Seq(
-  organization := "com.indoorvivants.forge",
-  sonatypeProfileName := "com.indoorvivants"
+  organization := "com.indoorvivants.forge"
 )
 
 lazy val noPublishing = Seq(
