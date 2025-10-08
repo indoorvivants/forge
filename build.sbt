@@ -25,13 +25,22 @@ lazy val publishing = Seq(
   sonatypeProfileName := "com.indoorvivants"
 )
 
+lazy val noPublishing = Seq(
+  publish / skip := true,
+  publishLocal / skip := true
+)
+
 val V = new {
   val scala212 = "2.12.20"
   val scala3 = "3.7.3"
 }
 
 lazy val root =
-  project.in(file(".")).aggregate(forgeViteWebappPlugin, exampleWebapp)
+  project
+    .in(file("."))
+    .aggregate(forgeViteWebappPlugin, exampleWebapp)
+    .aggregate(forgeNativeBinary, exampleNativeBinary)
+    .settings(noPublishing)
 
 lazy val forgeViteWebappPlugin = project
   .in(file("mod/forge-vite-webapp-plugin"))
@@ -65,7 +74,7 @@ lazy val forgeNativeBinary = project
     ),
     scriptedBufferLog := false,
     libraryDependencies += "com.indoorvivants.detective" %%% "platform" % "0.1.0",
-    addSbtPlugin("org.scala-native" % "sbt-scala-native" % "0.5.8")
+    addSbtPlugin("org.scala-native" % "sbt-scala-native" % nativeVersion)
   )
 
 lazy val exampleWebapp =
@@ -75,7 +84,8 @@ lazy val exampleWebapp =
     .settings(
       libraryDependencies += "com.raquo" %%% "laminar" % "17.2.1",
       frontendPackages := Seq("my.frontend"),
-      scalaVersion := V.scala3
+      scalaVersion := V.scala3,
+      noPublishing
     )
 
 lazy val exampleNativeBinary =
@@ -84,5 +94,15 @@ lazy val exampleNativeBinary =
     .enablePlugins(ForgeNativeBinaryPlugin)
     .settings(
       scalaVersion := V.scala3,
-      buildBinaryConfig ~= { (_).withName("example-binary") }
+      buildBinaryConfig ~= { (_).withName("example-binary") },
+      noPublishing
     )
+
+val Commands = List(
+  "exampleWebapp/frontendInit -f",
+  "exampleWebapp/frontendBuild",
+  "exampleNativeBinary/buildBinaryDebug",
+  "exampleNativeBinary/buildBinaryPlatformRelease"
+).mkString(";")
+
+addCommandAlias("ci", Commands)

@@ -39,7 +39,7 @@ object ForgeViteWebappPlugin extends AutoPlugin {
     scalaJSUseMainModuleInitializer := true,
     frontendPackages := Seq.empty,
     frontendProjectName := name.value,
-    frontendProjectRef := state.value.currentProject.id,
+    frontendProjectRef := thisProjectRef.value.project,
     fastLinkJS / scalaJSLinkerConfig := {
       var conf = (fastLinkJS / scalaJSLinkerConfig).value
 
