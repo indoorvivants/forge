@@ -17,10 +17,10 @@ inThisBuild(
   )
 )
 
-organization := "com.indoorvivants.forge"
+organization := "com.indoorvivants"
 
 lazy val publishing = Seq(
-  organization := "com.indoorvivants.forge"
+  organization := "com.indoorvivants"
 )
 
 lazy val noPublishing = Seq(
