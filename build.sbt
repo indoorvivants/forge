@@ -58,7 +58,7 @@ lazy val forgeViteWebappPlugin = project
   )
 
 lazy val forgeNativeBinary = project
-  .in(file("mod/forge-native-binary"))
+  .in(file("mod/forge-native-binary-plugin"))
   .enablePlugins(ScriptedPlugin, SbtPlugin)
   .settings(publishing)
   .settings(
