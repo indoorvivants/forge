@@ -1,7 +1,7 @@
 package forge.nativebinary
 
 import sbt.Keys._
-import sbt._
+import sbt.*
 import sbt.plugins.JvmPlugin
 
 import java.nio.file.Files
@@ -15,7 +15,10 @@ import sjsonnew.support.scalajson.unsafe.Converter
 import java.nio.file.Paths
 import scala.collection.SortedMap
 import scala.scalanative.sbtplugin.ScalaNativePlugin
-import com.indoorvivants.detective.*, Platform.*
+import com.indoorvivants.detective.Platform, Platform.*
+import sbtcompat.PluginCompat._
+import xsbti.FileConverter
+import sjsonnew.IsoFormats
 
 object ForgeNativeBinaryPlugin extends AutoPlugin {
 
@@ -27,9 +30,13 @@ object ForgeNativeBinaryPlugin extends AutoPlugin {
     val BuildResult = forge.nativebinary.BuildResult
 
     val buildBinaryConfig = settingKey[BinConfig]("")
+    @transient
     val buildBinaryDebug = taskKey[BuildResult]("")
+    @transient
     val buildBinaryRelease = taskKey[BuildResult]("")
+    @transient
     val buildBinaryPlatformDebug = taskKey[BuildResult]("")
+    @transient
     val buildBinaryPlatformRelease = taskKey[BuildResult]("")
   }
 
@@ -37,15 +44,38 @@ object ForgeNativeBinaryPlugin extends AutoPlugin {
 
   import autoImport.*
 
+  import sjsonnew._, LList.:*:
+
+  import BasicJsonProtocol._
+
+  // implicit object BuildResultJsonFormat extends JsonFormat[BuildResult] {
+  //   def write[J](x: BuildResult, builder: Builder[J]): Unit = {
+  //     builder.beginObject()
+  //     builder.addField("main", x.file)
+  //     builder.addField("rest", x.copies)
+  //     builder.endObject()
+  //   }
+  //   def read[J](jsOpt: Option[J], unbuilder: Unbuilder[J]): BuildResult = {
+  //     jsOpt match {
+  //       case Some(js) =>
+  //         val main = unbuilder.readField[FileRef]("main")
+  //         val copies = unbuilder.readField[Seq[FileRef]]("rest")
+
+  //         BuildResult(main, copies)
+  //       case None => ???
+  //     }
+  //   }
+  // }
+
   private def writeBinary(
-      source: File,
-      destinationDir: File,
-      extraDestinationDirs: Seq[File],
+      source: FileRef,
+      destinationDir: java.nio.file.Path,
+      extraDestinationDirs: Seq[java.nio.file.Path],
       log: sbt.Logger,
       platform: Option[Platform.Target],
       debug: Boolean,
       name: String
-  ): BuildResult = {
+  )(implicit fileConverter: FileConverter): BuildResult = {
 
     import java.nio.file.*
 
@@ -55,6 +85,7 @@ object ForgeNativeBinaryPlugin extends AutoPlugin {
         val ext = target.os match {
           case Platform.OS.Windows => ".exe"
           case _                   => ""
+
         }
 
         name + "-" + ArtifactNames.coursierString(target) + ext
@@ -62,18 +93,18 @@ object ForgeNativeBinaryPlugin extends AutoPlugin {
 
     import scala.sys.process.*
 
-    val built = List.newBuilder[File]
+    val built = List.newBuilder[FileRef]
 
     (destinationDir +: extraDestinationDirs).foreach { dir =>
       val seg = if (debug) "debug" else "release"
-      val dest = dir / seg / fullName
+      val dest = (dir / seg / fullName).toFile
 
-      built += dest
+      built += toFileRef(dest)
 
       Files.createDirectories(dest.getParentFile().toPath())
 
       Files.copy(
-        source.toPath(),
+        toFile(source).toPath(),
         dest.toPath(),
         StandardCopyOption.COPY_ATTRIBUTES,
         StandardCopyOption.REPLACE_EXISTING
@@ -96,9 +127,10 @@ object ForgeNativeBinaryPlugin extends AutoPlugin {
   override lazy val projectSettings = Seq(
     buildBinaryConfig := BinConfig.default(
       name.value,
-      destinationDir = (ThisBuild / baseDirectory).value / "out"
+      destinationDir = ((ThisBuild / baseDirectory).value / "out").toPath
     ),
-    buildBinaryDebug :=
+    buildBinaryDebug := {
+      implicit val conv: xsbti.FileConverter = fileConverter.value
       writeBinary(
         source = (ThisProject / Compile / (SN.nativeLink)).value,
         destinationDir = buildBinaryConfig.value.destinationDir,
@@ -106,38 +138,48 @@ object ForgeNativeBinaryPlugin extends AutoPlugin {
         log = sLog.value,
         platform = None,
         debug = true,
-        name = (buildBinaryConfig.value.name)
-      ),
-    buildBinaryRelease :=
-      writeBinary(
-        source = (ThisProject / Compile / (SN.nativeLinkReleaseFast)).value,
-        destinationDir = buildBinaryConfig.value.destinationDir,
-        extraDestinationDirs = buildBinaryConfig.value.extraDestinationDirs,
-        log = sLog.value,
-        platform = None,
-        debug = false,
-        name = (buildBinaryConfig.value.name)
-      ),
-    buildBinaryPlatformDebug :=
-      writeBinary(
-        source = (ThisProject / Compile / (SN.nativeLink)).value,
-        destinationDir = buildBinaryConfig.value.destinationDir,
-        extraDestinationDirs = buildBinaryConfig.value.extraDestinationDirs,
-        log = sLog.value,
-        platform = Some(Platform.target),
-        debug = true,
-        name = (buildBinaryConfig.value.name)
-      ),
-    buildBinaryPlatformRelease :=
-      writeBinary(
-        source = (ThisProject / Compile / (SN.nativeLinkReleaseFast)).value,
-        destinationDir = buildBinaryConfig.value.destinationDir,
-        extraDestinationDirs = buildBinaryConfig.value.extraDestinationDirs,
-        log = sLog.value,
-        platform = Some(Platform.target),
-        debug = false,
         name = (buildBinaryConfig.value.name)
       )
+    },
+    buildBinaryRelease :=
+      {
+        implicit val conv: xsbti.FileConverter = fileConverter.value
+        writeBinary(
+          source = (ThisProject / Compile / (SN.nativeLinkReleaseFast)).value,
+          destinationDir = buildBinaryConfig.value.destinationDir,
+          extraDestinationDirs = buildBinaryConfig.value.extraDestinationDirs,
+          log = sLog.value,
+          platform = None,
+          debug = false,
+          name = (buildBinaryConfig.value.name)
+        )
+      },
+    buildBinaryPlatformDebug :=
+      {
+        implicit val conv: xsbti.FileConverter = fileConverter.value
+        writeBinary(
+          source = (ThisProject / Compile / (SN.nativeLink)).value,
+          destinationDir = buildBinaryConfig.value.destinationDir,
+          extraDestinationDirs = buildBinaryConfig.value.extraDestinationDirs,
+          log = sLog.value,
+          platform = Some(Platform.target),
+          debug = true,
+          name = (buildBinaryConfig.value.name)
+        )
+      },
+    buildBinaryPlatformRelease :=
+      {
+        implicit val conv: xsbti.FileConverter = fileConverter.value
+        writeBinary(
+          source = (ThisProject / Compile / (SN.nativeLinkReleaseFast)).value,
+          destinationDir = buildBinaryConfig.value.destinationDir,
+          extraDestinationDirs = buildBinaryConfig.value.extraDestinationDirs,
+          log = sLog.value,
+          platform = Some(Platform.target),
+          debug = false,
+          name = (buildBinaryConfig.value.name)
+        )
+      }
   )
 
 }

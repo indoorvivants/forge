@@ -30,14 +30,18 @@ lazy val noPublishing = Seq(
 
 val V = new {
   val scala212 = "2.12.20"
-  val scala3 = "3.7.3"
+  val scala3 = "3.8.3"
+
+  val sbt1ScalaVersion = scala212
+  val sbt2ScalaVersion = "3.8.3"
 }
 
 lazy val root =
   project
     .in(file("."))
     .aggregate(forgeViteWebappPlugin, exampleWebapp)
-    .aggregate(forgeNativeBinary, exampleNativeBinary)
+    .aggregate(forgeNativeBinary.projectRefs*)
+    .aggregate(exampleNativeBinary)
     .settings(noPublishing)
 
 lazy val forgeViteWebappPlugin = project
@@ -54,25 +58,45 @@ lazy val forgeViteWebappPlugin = project
       "-Dplugin.version=" + version.value
     ),
     scriptedBufferLog := false,
-    addSbtPlugin("org.scala-js" % "sbt-scalajs" % "1.20.1")
+    addSbtPlugin("org.scala-js" % "sbt-scalajs" % "1.21.0")
   )
 
-lazy val forgeNativeBinary = project
+lazy val forgeNativeBinary = projectMatrix
   .in(file("mod/forge-native-binary-plugin"))
   .enablePlugins(ScriptedPlugin, SbtPlugin)
   .settings(publishing)
+  .jvmPlatform(Seq(V.sbt1ScalaVersion, V.sbt2ScalaVersion))
   .settings(
-    scalaVersion := V.scala212,
+    (pluginCrossBuild / sbtVersion) := {
+      scalaBinaryVersion.value match {
+        case "2.12" => "1.12.0"
+        case _      => "2.0.0-RC11"
+      }
+    },
+    scalacOptions ++= {
+      scalaBinaryVersion.value match {
+        case "2.12" => "-Xsource:3" :: Nil
+        case _      => Nil
+      }
+    },
+    sbtTestDirectory := {
+      scalaBinaryVersion.value match {
+        case "2.12" => (sourceDirectory).value / "sbt-test"
+        case _      => (sourceDirectory).value / "sbt-test-sbt2"
+      }
+    },
+    scriptedLaunchOpts := {
+      scriptedLaunchOpts.value ++
+        Seq("-Xmx1024M", "-Dplugin.version=" + version.value)
+    },
+    scriptedBufferLog := false
+  )
+  .settings(
     name := "sbt-forge-native-binary",
     sbtPlugin := true,
-    // set up 'scripted; sbt plugin for testing sbt plugins
-    scriptedLaunchOpts ++= Seq(
-      "-Xmx1024M",
-      "-Dplugin.version=" + version.value
-    ),
-    scriptedBufferLog := false,
     libraryDependencies += "com.indoorvivants.detective" %%% "platform" % "0.1.0",
-    addSbtPlugin("org.scala-native" % "sbt-scala-native" % nativeVersion)
+    addSbtPlugin("org.scala-native" % "sbt-scala-native" % nativeVersion),
+    addSbtPlugin("com.github.sbt" % "sbt2-compat" % "0.1.0")
   )
 
 lazy val exampleWebapp =

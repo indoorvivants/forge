@@ -5,7 +5,7 @@ addSbtPlugin("org.scalameta" % "sbt-mdoc" % "2.3.8")
 
 // Scala.js and Scala Native
 addSbtPlugin("org.scala-js" % "sbt-scalajs" % "1.20.1")
-addSbtPlugin("org.scala-native" % "sbt-scala-native" % "0.5.10")
+addSbtPlugin("org.scala-native" % "sbt-scala-native" % "0.5.11")
 
 libraryDependencies ++= List(
   "org.scala-sbt" %% "scripted-plugin" % sbtVersion.value
@@ -19,4 +19,6 @@ Compile / unmanagedSourceDirectories +=
     "mod" / "forge-native-binary-plugin" / "src" / "main" / "scala"
 
 libraryDependencies += "com.indoorvivants.detective" %% "platform" % "0.1.0"
+
+addSbtPlugin("com.github.sbt" % "sbt2-compat" % "0.1.0")
 
