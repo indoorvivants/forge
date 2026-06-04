@@ -4,8 +4,8 @@ addSbtPlugin("org.scalameta" % "sbt-scalafmt" % "2.5.2")
 addSbtPlugin("org.scalameta" % "sbt-mdoc" % "2.3.8")
 
 // Scala.js and Scala Native
-addSbtPlugin("org.scala-js" % "sbt-scalajs" % "1.20.1")
-addSbtPlugin("org.scala-native" % "sbt-scala-native" % "0.5.11")
+addSbtPlugin("org.scala-js" % "sbt-scalajs" % "1.21.0")
+addSbtPlugin("org.scala-native" % "sbt-scala-native" % "0.5.12")
 
 libraryDependencies ++= List(
   "org.scala-sbt" %% "scripted-plugin" % sbtVersion.value

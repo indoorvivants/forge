@@ -16,6 +16,7 @@ import org.scalajs.sbtplugin.ScalaJSPlugin
 import org.scalajs.linker.interface.ModuleSplitStyle
 import java.nio.file.Paths
 import scala.collection.SortedMap
+import java.nio.file.StandardCopyOption
 
 object ForgeViteWebappPlugin extends AutoPlugin {
 
@@ -24,10 +25,16 @@ object ForgeViteWebappPlugin extends AutoPlugin {
     val frontendProjectName = settingKey[String]("")
     val frontendProjectRef = taskKey[String]("")
     val frontendInit = inputKey[Unit]("Initialize a minimal Vite project")
+    val frontendRoot =
+      settingKey[java.nio.file.Path](
+        "Location where Vite-specific files will be located – and `npm run build` will be run in this directory"
+      )
     val frontendBuildLocation =
-      settingKey[File]("Location where to put build frontend")
+      settingKey[java.nio.file.Path](
+        "Location where to put build frontend (default: 'dist' subfolder under frontendRoot)"
+      )
     val frontendBuild =
-      inputKey[Unit]("Build the frontend with full optimisations")
+      inputKey[java.nio.file.Path]("Build the frontend with full optimisations")
   }
 
   override def requires: Plugins = ScalaJSPlugin
@@ -59,12 +66,7 @@ object ForgeViteWebappPlugin extends AutoPlugin {
       val args: Seq[String] = spaceDelimited("<arg>").parsed
       val force = args.contains("-f")
       val buildRoot = (ThisBuild / baseDirectory).value.toPath
-      val projectRoot = {
-        val raw = baseDirectory.value.toPath
-        if (raw.startsWith(buildRoot.resolve(".sbt/matrix")))
-          sourceDirectory.value.toPath.getParent()
-        else raw
-      }
+      val projectRoot = frontendRoot.value
       val relativePath = projectRoot.relativize(buildRoot)
       val projectRef = frontendProjectRef.value
       val projectName = frontendProjectName.value
@@ -83,7 +85,7 @@ object ForgeViteWebappPlugin extends AutoPlugin {
         |  "type": "module",
         |  "devDependencies": {
         |    "@scala-js/vite-plugin-scalajs": "^1.0.0",
-        |    "vite": "^7.1.5"
+        |    "vite": "^8.0.0"
         |  }
         |}
         """.trim.stripMargin,
@@ -145,7 +147,7 @@ object ForgeViteWebappPlugin extends AutoPlugin {
         Files.writeString(destination, contents)
       }
     },
-    frontendBuild := {
+    frontendRoot := {
       val projectRoot = {
         val raw = baseDirectory.value.toPath
         if (
@@ -157,7 +159,15 @@ object ForgeViteWebappPlugin extends AutoPlugin {
         else raw
       }
 
+      projectRoot
+    },
+    frontendBuildLocation := frontendRoot.value / "dist",
+    frontendBuild := {
       import scala.sys.process.*
+
+      val projectRoot = frontendRoot.value
+      val viteBuild = projectRoot / "dist"
+      val destination = frontendBuildLocation.value
 
       assert(
         Process("npm install", cwd = projectRoot.toFile).! == 0,
@@ -169,7 +179,11 @@ object ForgeViteWebappPlugin extends AutoPlugin {
         "Command [npm run build] did not finish successfully"
       )
 
-      projectRoot / "dist"
+      Files.move(
+        viteBuild,
+        destination,
+        StandardCopyOption.REPLACE_EXISTING
+      )
 
     }
   )
