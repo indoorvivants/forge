@@ -29,12 +29,8 @@ object ForgeViteWebappPlugin extends AutoPlugin {
       settingKey[java.nio.file.Path](
         "Location where Vite-specific files will be located – and `npm run build` will be run in this directory"
       )
-    val frontendBuildLocation =
-      settingKey[java.nio.file.Path](
-        "Location where to put build frontend (default: 'dist' subfolder under frontendRoot)"
-      )
     val frontendBuild =
-      inputKey[java.nio.file.Path]("Build the frontend with full optimisations")
+      taskKey[java.nio.file.Path]("Build the frontend with full optimisations")
   }
 
   override def requires: Plugins = ScalaJSPlugin
@@ -161,13 +157,11 @@ object ForgeViteWebappPlugin extends AutoPlugin {
 
       projectRoot
     },
-    frontendBuildLocation := frontendRoot.value / "dist",
     frontendBuild := {
       import scala.sys.process.*
 
       val projectRoot = frontendRoot.value
       val viteBuild = projectRoot / "dist"
-      val destination = frontendBuildLocation.value
 
       assert(
         Process("npm install", cwd = projectRoot.toFile).! == 0,
@@ -179,11 +173,7 @@ object ForgeViteWebappPlugin extends AutoPlugin {
         "Command [npm run build] did not finish successfully"
       )
 
-      Files.move(
-        viteBuild,
-        destination,
-        StandardCopyOption.REPLACE_EXISTING
-      )
+      viteBuild
 
     }
   )

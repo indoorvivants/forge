@@ -40,7 +40,7 @@ lazy val root =
   project
     .in(file("."))
     .aggregate(forgeViteWebappPlugin, exampleWebapp)
-    .aggregate(forgeNativeBinary.projectRefs*)
+    .aggregate(forgeNativeBinary.projectRefs *)
     .aggregate(exampleNativeBinary)
     .settings(noPublishing)
 

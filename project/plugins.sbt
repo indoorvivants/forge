@@ -21,4 +21,3 @@ Compile / unmanagedSourceDirectories +=
 libraryDependencies += "com.indoorvivants.detective" %% "platform" % "0.1.0"
 
 addSbtPlugin("com.github.sbt" % "sbt2-compat" % "0.1.0")
-
